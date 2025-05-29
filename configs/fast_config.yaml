@@ -1,0 +1,82 @@
+# Fast Training Configuration for MAMBA-TrackingBERT
+# Balanced performance for quick results
+
+data:
+  data_dir: "data/processed"
+  train_split: 0.8
+  val_split: 0.1
+  test_split: 0.1
+  batch_size: 1024       # Safe for 12GB GPU
+  num_workers: 16        # Good parallelism
+  pin_memory: true
+  track_length_range: [4, 8]
+  volumes: [7, 8, 9]
+  max_tracks_per_event: 12000
+
+model:
+  vocab_size: 20000
+  pad_token_id: 0
+  mask_token_id: 1
+  
+  # Medium MAMBA architecture
+  d_model: 256           # Medium embedding
+  d_state: 64            # Medium state dimension
+  d_conv: 4
+  expand: 2
+  n_layers: 10           # Good depth
+  dropout: 0.1
+  
+  mdm_hidden_dim: 512
+  ntp_hidden_dim: 256
+  
+  gradient_checkpointing: false
+  mixed_precision: true   # Keep for speed
+  
+training:
+  num_epochs: 50         # Quick training
+  learning_rate: 0.0015
+  weight_decay: 0.01
+  warmup_steps: 1000
+  
+  optimizer: "adamw"
+  adam_beta1: 0.9
+  adam_beta2: 0.95
+  adam_epsilon: 0.00000001
+  
+  scheduler: "cosine"
+  min_lr: 0.00001
+  
+  mdm_weight: 1.0
+  ntp_weight: 0.5
+  
+  initial_mask_rate: 0.15
+  intermediate_mask_rate: 0.30
+  final_mask_rate: 0.50
+  mask_schedule_epochs: [15, 30]
+  
+  accumulation_steps: 4   # 4096 * 4 = 16K effective batch size
+  amp_enabled: true
+  
+  label_smoothing: 0.1
+  gradient_clip_val: 1.0
+  
+  save_every_n_epochs: 5
+  checkpoint_dir: "checkpoints"
+  keep_last_n_checkpoints: 2
+  
+evaluation:
+  metrics: ["accuracy", "f1", "precision", "recall"]
+  distance_threshold: 20.0
+  
+logging:
+  log_every_n_steps: 100
+  tensorboard_dir: "logs/tensorboard"
+  wandb_project: null
+  wandb_entity: null
+  
+hardware:
+  gpu_memory_limit: 12000
+  num_gpus: 1
+  
+seed: 42
+deterministic: false

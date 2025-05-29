@@ -1,0 +1,94 @@
+# Beast Machine Configuration for MAMBA-TrackingBERT
+# Optimized for Xeon W-2295 + 125GB RAM + High-end GPU
+
+data:
+  data_dir: "data/processed"
+  train_split: 0.8
+  val_split: 0.1
+  test_split: 0.1
+  batch_size: 2048        # Optimized for 12GB GPU
+  num_workers: 24         # Use most of your 36 cores for data loading
+  pin_memory: true
+  track_length_range: [4, 8]
+  volumes: [7, 8, 9]
+  max_tracks_per_event: 15000  # More tracks per event
+
+model:
+  # Tokenizer settings
+  vocab_size: 20000
+  pad_token_id: 0
+  mask_token_id: 1
+  
+  # LARGE MAMBA architecture optimized for 12GB
+  d_model: 384           # Large but GPU-friendly embedding
+  d_state: 96            # Large state dimension
+  d_conv: 4
+  expand: 2
+  n_layers: 12           # Deep network
+  dropout: 0.1
+  
+  # Task heads
+  mdm_hidden_dim: 768    # Large but reasonable
+  ntp_hidden_dim: 384
+  
+  # Memory optimization (keep what helps)
+  gradient_checkpointing: false  # Disable for speed (you have enough memory)
+  mixed_precision: true          # KEEP for 2x speed boost
+  
+training:
+  num_epochs: 100        # Fewer epochs (model will learn faster)
+  learning_rate: 0.002   # Higher LR for larger batches
+  weight_decay: 0.01
+  warmup_steps: 2000     # More warmup for large batches
+  
+  # Optimizer (tuned for large batches)
+  optimizer: "adamw"
+  adam_beta1: 0.9
+  adam_beta2: 0.95       # Better for large batch training
+  adam_epsilon: 0.00000001
+  
+  # Learning rate scheduler
+  scheduler: "cosine"
+  min_lr: 0.00001
+  
+  # Loss weights
+  mdm_weight: 1.0
+  ntp_weight: 0.5
+  
+  # Masking strategy (faster schedule)
+  initial_mask_rate: 0.15
+  intermediate_mask_rate: 0.30
+  final_mask_rate: 0.50
+  mask_schedule_epochs: [25, 50]  # Faster progression
+  
+  # Gradient accumulation for large effective batches
+  accumulation_steps: 8          # 2048 * 8 = 16K effective batch size!
+  amp_enabled: true              # Essential for 12GB GPU
+  memory_efficient_attention: false
+  
+  # Regularization
+  label_smoothing: 0.1
+  gradient_clip_val: 1.0
+  
+  # Checkpointing
+  save_every_n_epochs: 5  # Save less frequently
+  checkpoint_dir: "checkpoints"
+  keep_last_n_checkpoints: 2  # Keep fewer checkpoints
+  
+evaluation:
+  metrics: ["accuracy", "f1", "precision", "recall"]
+  distance_threshold: 20.0
+  
+logging:
+  log_every_n_steps: 50   # Log more frequently to see progress
+  tensorboard_dir: "logs/tensorboard"
+  wandb_project: null     # Disable W&B for speed
+  wandb_entity: null
+  
+hardware:
+  gpu_memory_limit: 12000  # Your actual 12GB GPU
+  num_gpus: 1
+  distributed_backend: "ddp"
+  
+seed: 42
+deterministic: false  # Allow non-deterministic ops for speed
